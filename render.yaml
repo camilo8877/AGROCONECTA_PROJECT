@@ -1,0 +1,158 @@
+# Blueprint de Render: toda la infraestructura de AgroConecta como código.
+# Render > New > Blueprint > seleccionar este repositorio.
+# Las rutas (dockerfilePath, dockerContext, buildFilter) son relativas a la raíz del repositorio.
+#
+# Nota: en el plan gratuito los Web Services no reciben tráfico por la red privada,
+# por eso los servicios se comunican por su URL pública (RENDER_EXTERNAL_HOSTNAME)
+# y se protegen con INTERNAL_TOKEN. PostgreSQL y Key Value sí se usan por red privada.
+
+envVarGroups:
+  - name: agroconecta-secretos
+    envVars:
+      - key: INTERNAL_TOKEN        # token compartido entre gateway y servicios internos
+        generateValue: true
+      - key: JWT_SECRET            # firma de los tokens de usuario
+        generateValue: true
+
+services:
+  # ---------------- API Gateway ----------------
+  - type: web
+    name: agroconecta-gateway
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./api-gateway/Dockerfile
+    dockerContext: ./api-gateway
+    buildFilter:
+      paths: ["api-gateway/**"]   # solo se redespliega si cambia su carpeta
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: agroconecta-secretos
+      - key: DB_SCHEMA
+        value: auth
+      - key: DATABASE_URL
+        fromDatabase: { name: agroconecta-db, property: connectionString }
+      - key: CATALOGO_URL
+        fromService: { type: web, name: agroconecta-catalogo, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+      - key: PEDIDOS_URL
+        fromService: { type: web, name: agroconecta-pedidos, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+      - key: PAGOS_URL
+        fromService: { type: web, name: agroconecta-pagos, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+      - key: NOTIFICACIONES_URL
+        fromService: { type: web, name: agroconecta-notificaciones, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+      - key: GATEWAY_TIMEOUT
+        value: "120"
+      - key: RATE_LIMIT_POR_MINUTO
+        value: "300"
+
+  # ---------------- Catálogo ----------------
+  - type: web
+    name: agroconecta-catalogo
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./catalogo-service/Dockerfile
+    dockerContext: ./catalogo-service
+    buildFilter:
+      paths: ["catalogo-service/**"]   # solo se redespliega si cambia su carpeta
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: agroconecta-secretos
+      - key: DB_SCHEMA
+        value: catalogo
+      - key: DATABASE_URL
+        fromDatabase: { name: agroconecta-db, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: agroconecta-kv, property: connectionString }
+
+  # ---------------- Pedidos (orquestador de la Saga) ----------------
+  - type: web
+    name: agroconecta-pedidos
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./pedidos-service/Dockerfile
+    dockerContext: ./pedidos-service
+    buildFilter:
+      paths: ["pedidos-service/**"]   # solo se redespliega si cambia su carpeta
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: agroconecta-secretos
+      - key: DB_SCHEMA
+        value: pedidos
+      - key: DATABASE_URL
+        fromDatabase: { name: agroconecta-db, property: connectionString }
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: agroconecta-kv, property: connectionString }
+      - key: CATALOGO_URL
+        fromService: { type: web, name: agroconecta-catalogo, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+      - key: PAGOS_URL
+        fromService: { type: web, name: agroconecta-pagos, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+      - key: HTTP_TIMEOUT
+        value: "90"
+
+  # ---------------- Pagos (Circuit Breaker + Retry) ----------------
+  - type: web
+    name: agroconecta-pagos
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./pagos-service/Dockerfile
+    dockerContext: ./pagos-service
+    buildFilter:
+      paths: ["pagos-service/**"]   # solo se redespliega si cambia su carpeta
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: agroconecta-secretos
+      - key: DB_SCHEMA
+        value: pagos
+      - key: DATABASE_URL
+        fromDatabase: { name: agroconecta-db, property: connectionString }
+      - key: PASARELA_TASA_FALLO
+        value: "0"
+      - key: CB_UMBRAL_FALLOS
+        value: "3"
+      - key: CB_TIEMPO_RECUPERACION
+        value: "30"
+
+  # ---------------- Notificaciones (suscriptor Pub/Sub) ----------------
+  - type: web
+    name: agroconecta-notificaciones
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./notificaciones-service/Dockerfile
+    dockerContext: ./notificaciones-service
+    buildFilter:
+      paths: ["notificaciones-service/**"]   # solo se redespliega si cambia su carpeta
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: agroconecta-secretos
+      - key: REDIS_URL
+        fromService: { type: keyvalue, name: agroconecta-kv, property: connectionString }
+
+  # ---------------- Frontend ----------------
+  - type: web
+    name: agroconecta-web
+    runtime: static
+    buildCommand: echo "window.API_URL='https://${API_HOST}';" > frontend/config.js
+    staticPublishPath: ./frontend
+    buildFilter:
+      paths: ["frontend/**"]
+    envVars:
+      - key: API_HOST
+        fromService: { type: web, name: agroconecta-gateway, envVarKey: RENDER_EXTERNAL_HOSTNAME }
+
+  # ---------------- Caché y broker de eventos ----------------
+  - type: keyvalue
+    name: agroconecta-kv
+    plan: free
+    region: ohio
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []          # solo accesible desde la red privada de Render
+
+databases:
+  - name: agroconecta-db
+    plan: free
+    region: ohio
+    databaseName: agroconecta
