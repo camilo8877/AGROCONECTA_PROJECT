@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgroConecta · Del campo a tu negocio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <div class="marca">
+      <span class="logo" aria-hidden="true">🌱</span>
+      <div>
+        <h1>AgroConecta</h1>
+        <p>Del Oriente Antioqueño a tu negocio</p>
+      </div>
+    </div>
+    <div id="sesion" class="sesion"></div>
+  </header>
+
+  <!-- Acceso -->
+  <main id="vista-acceso" class="contenedor acceso">
+    <section class="tarjeta">
+      <h2>Iniciar sesión</h2>
+      <p class="sutil">Cuentas de demostración:</p>
+      <div class="demo-botones">
+        <button data-demo="comprador">🍽️ Comprador</button>
+        <button data-demo="productor">🧑‍🌾 Productor</button>
+        <button data-demo="admin">🛠️ Administrador</button>
+      </div>
+      <form id="form-login" class="formulario">
+        <label>Correo <input name="email" type="email" required autocomplete="username"></label>
+        <label>Contraseña <input name="clave" type="password" required autocomplete="current-password"></label>
+        <button class="primario" type="submit">Entrar</button>
+      </form>
+      <details>
+        <summary>¿No tienes cuenta? Regístrate</summary>
+        <form id="form-registro" class="formulario">
+          <label>Nombre <input name="nombre" required minlength="2"></label>
+          <label>Correo <input name="email" type="email" required></label>
+          <label>Contraseña (mín. 8) <input name="clave" type="password" required minlength="8"></label>
+          <label>Soy
+            <select name="rol"><option value="comprador">Comprador (restaurante o tienda)</option><option value="productor">Productor</option></select>
+          </label>
+          <label>Razón social <input name="razon_social"></label>
+          <button class="primario" type="submit">Crear cuenta</button>
+        </form>
+      </details>
+    </section>
+    <section class="presentacion">
+      <h2>Arquitectura de microservicios en la nube</h2>
+      <p>Prototipo del curso de Arquitectura de Software. Cada acción de esta página recorre el API Gateway y los servicios de catálogo, pedidos, pagos y notificaciones desplegados en Render.</p>
+      <ul>
+        <li><b>API Gateway</b> con JWT y límite de peticiones</li>
+        <li><b>Saga orquestada</b> para pedido, inventario y pago</li>
+        <li><b>Circuit Breaker + Retry</b> frente a la pasarela</li>
+        <li><b>Cache-Aside</b> en el catálogo</li>
+        <li><b>Publisher/Subscriber</b> para notificaciones</li>
+        <li><b>Health Endpoint Monitoring</b> en todos los servicios</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- Aplicación -->
+  <main id="vista-app" class="contenedor oculto">
+    <nav class="pestanas" id="pestanas"></nav>
+
+    <section id="tab-catalogo" class="tab">
+      <div class="filtros">
+        <select id="f-categoria"><option value="">Todas las categorías</option></select>
+        <input id="f-municipio" placeholder="Municipio (ej. Marinilla)">
+        <label class="check"><input type="checkbox" id="f-disponibles"> Solo con stock</label>
+      </div>
+      <div class="catalogo-layout">
+        <div id="productos" class="grilla"></div>
+        <aside id="carrito" class="tarjeta carrito"></aside>
+      </div>
+    </section>
+
+    <section id="tab-pedidos" class="tab oculto">
+      <div id="lista-pedidos" class="lista"></div>
+    </section>
+
+    <section id="tab-productor" class="tab oculto">
+      <div class="dos-columnas">
+        <div class="tarjeta">
+          <h3>Publicar producto</h3>
+          <form id="form-producto" class="formulario">
+            <label>Nombre <input name="nombre" required></label>
+            <div class="fila">
+              <label>Unidad <input name="unidad" value="kg" required></label>
+              <label>Precio (COP) <input name="precio" type="number" min="1" required></label>
+              <label>Stock <input name="disponible_inicial" type="number" min="0" value="10" required></label>
+            </div>
+            <label>Categoría <select name="categoria_id" id="p-categoria"></select></label>
+            <label>Finca <select name="finca_id" id="p-finca"></select></label>
+            <button class="primario" type="submit">Publicar</button>
+          </form>
+          <details>
+            <summary>Registrar una finca</summary>
+            <form id="form-finca" class="formulario">
+              <label>Nombre <input name="nombre" required></label>
+              <label>Municipio <input name="municipio" required></label>
+              <button type="submit">Guardar finca</button>
+            </form>
+          </details>
+        </div>
+        <div class="tarjeta">
+          <h3>Mis productos e inventario</h3>
+          <div id="mis-productos" class="lista compacta"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-admin" class="tab oculto">
+      <div class="dos-columnas">
+        <div class="tarjeta"><h3>Validar productores</h3><div id="productores" class="lista compacta"></div></div>
+        <div class="tarjeta"><h3>Reporte de ventas</h3><div id="reporte"></div></div>
+      </div>
+    </section>
+
+    <section id="tab-arquitectura" class="tab oculto">
+      <h3>Salud de los servicios <small class="sutil">(se actualiza cada 5 s)</small></h3>
+      <div id="salud" class="servicios"></div>
+      <div class="dos-columnas">
+        <div class="tarjeta">
+          <h3>Circuit Breaker · pasarela de pagos</h3>
+          <div id="circuito"></div>
+          <div id="control-pasarela" class="oculto">
+            <label>Tasa de fallo de la pasarela simulada: <b id="tasa-valor">0%</b>
+              <input id="tasa" type="range" min="0" max="100" step="10" value="0">
+            </label>
+            <button id="btn-reset">Reiniciar circuito</button>
+          </div>
+        </div>
+        <div class="tarjeta">
+          <h3>Cache-Aside · catálogo</h3>
+          <div id="cache"></div>
+        </div>
+      </div>
+      <div class="tarjeta">
+        <h3>Notificaciones recibidas (Publisher/Subscriber)</h3>
+        <div id="notificaciones" class="lista compacta"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="aviso" class="aviso oculto" role="status"></div>
+  <footer class="pie">AgroConecta · Prototipo académico · Arquitectura de Software</footer>
+  <script src="app.js"></script>
+</body>
+</html>
