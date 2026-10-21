@@ -174,18 +174,7 @@ Render crea automáticamente `INTERNAL_TOKEN` y `JWT_SECRET` (grupo `agroconecta
 
 ---
 
-## Guion sugerido para la demostración en video
 
-1. **Arquitectura en vivo** (como admin): los cinco servicios en verde → *Health Endpoint Monitoring*.
-2. **Pedido exitoso** (como comprador): agrega aguacate y tomate y paga. Muestra los pasos de la Saga en la tarjeta del pedido.
-3. **Notificaciones**: en *Arquitectura en vivo* aparecen los mensajes al comprador y al productor → *Pub/Sub*.
-4. **Falla de la pasarela** (como admin): sube la tasa de fallo al 100 %. Como comprador, intenta pagar 3 veces: el pedido se cancela y el stock vuelve (compensación). El circuito pasa a **ABIERTO** y el siguiente intento falla en milisegundos, mientras el catálogo sigue funcionando.
-5. **Recuperación**: baja la tasa a 0 %. Tras 30 s el circuito pasa a SEMIABIERTO y, con el siguiente pago, a CERRADO.
-6. **Concurrencia**: ejecuta `python scripts/verificar.py <url>` y muestra que 20 compras simultáneas por 5 kg de mora producen exactamente 5 ventas.
-7. **Cache-Aside**: muestra la tasa de aciertos de la caché.
-8. **Productor**: actualiza el inventario y despacha el pedido; el comprador recibe la notificación.
-
----
 
 ## API principal (vía gateway)
 
@@ -247,4 +236,4 @@ Flujo: rama por funcionalidad (`feature/...`) → *pull request* revisado por ot
 | [Integrante 4] | Desarrollador backend |
 | [Integrante 5] | DevOps y QA |
 
-Proyecto académico · [Institución] · 2026
+Proyecto académico 
